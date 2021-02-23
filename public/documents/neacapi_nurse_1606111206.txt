@@ -1,0 +1,1064 @@
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Hash;
+
+use App\User;
+use App\Country;
+use App\FormGroup;
+use App\Post;
+use App\Profile;
+use App\Service;
+use App\Testimonial;
+use App\Mails;
+use App\Notification;
+use App\ServiceCategory;
+use App\Currency;
+use App\Cart;
+use App\CartItem;
+use App\UserReferred;
+
+
+
+use Illuminate\Support\Facades\Crypt;
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider within a group which
+| is assigned the "api" middleware group. Enjoy building your API!
+|
+*/
+
+Route::post('login',  ['middleware'=>['cors','apitoken'], function (Request $request) {
+    $post = $request->all();
+  
+    $rules = array(
+        'email'    => 'required|email',
+        'password' => 'required'
+    );
+    
+    $validator = \Validator::make($post, $rules);
+    
+    if ($validator->fails()) {
+
+        return response()->json($validator->messages());
+
+    } else {
+    
+        $userdata = array(
+            'email'         => $request->input('email'),
+            'password'      => $request->input('password'),
+            'status'        => 1,
+            'approval'      => isset($post['in']) ? 0 : 1,
+            'user_type'     => 'applicant'
+        );
+    
+        if (Auth::attempt($userdata)) {
+            $user = Auth::user();
+            
+            if( isset($post['in'])) {
+                $id = Helper::secure_enc($request->input('in') , 'd');
+                $email = Helper::secure_enc($request->input('mn') , 'd');
+                $au = User::where('id', $id)->where('email', $email)->first();
+                $au->approval = 1;
+                $au->update();
+            }
+
+            $message = array(
+                'alert' => 'success',
+                'message' => 'Successfully Login!',
+                'user' => $user,
+                'token' =>  Crypt::encryptString($user->id)
+            );
+            return response()->json($message);
+    
+        } else {   
+
+            $message = array(
+                'alert' => 'danger',
+                'message' => 'Invalid Login'
+            );
+            return response()->json($message);
+    
+        }
+    }
+}]);
+
+Route::post('forgotpassword',  ['middleware'=>['cors','apitoken'], function (Request $request) {
+    $email = $request->input('email');
+    $user = User::where('email', $email)->where('user_type', 'applicant')->where('status', 1)->select('id', 'email', 'status', 'first_name', 'last_name')->first();
+    if($user) {
+        $link = 'http://neac.medicalexamscenter.com/reset-password?in='.Helper::secure_enc($user->id).'&mn='.Helper::secure_enc($user->email).'&sn='.Helper::secure_enc($user->status);
+        $body = '
+            <p>Dear '.$user->last_name.',</p>
+            <p>Here is your Password Reset Link:<br>
+                Email: <a href="mailto:'.$email.'" target="_blank">'.$email.'</a><br>
+                Applicant No.: '.$user->profile->application_number.'
+            </p>
+            <p><a href="'.$link.'">'.$link.'</a></p>
+        ';
+        $data = [
+            'body'          => $body,
+            'full_name'     => $user->last_name .' '. $user->first_name,
+            'to'            => $email
+        ];
+        
+        Mail::send('mails.mail', $data, function($message) use ($data) {
+            $message->to($data['to'], $data['full_name'])->subject('Account Registration');
+            $message->from('no-reply@neac.com','NEAC Medical Exams Center');
+        });
+
+        $return = array(
+            'alert' => 'success',
+            'message' => 'Please check your email for password reset!',
+        );
+    } else {
+        $return = array(
+            'alert' => 'danger',
+            'message' => 'Email not found!',
+        );
+    }
+    return response()->json($return);
+}]);
+
+Route::post('resetpassword', ['middleware' => ['cors', 'apitoken'], function(Request $request) {
+    $post = $request->all();
+    $rules = array(
+        'new_password'     => 'required|min:8',
+        'confirm_password' => 'required|min:8|same:new_password'
+    );
+    $validator = \Validator::make($post, $rules);
+
+    if ($validator->fails()) {
+        return response()->json($validator->messages());
+    } else {
+        $id = Helper::secure_enc($request->input('in') , 'd');
+        $email = Helper::secure_enc($request->input('mn') , 'd');
+        $status = Helper::secure_enc($request->input('sn') , 'd');
+        $user = User::where('id', $id)->where('email', $email)->where('status', $status)->first();
+        $user->password = Hash::make($post['confirm_password']);
+        $user->approval = 1;
+        $user->update();
+        $message = array(
+            'success' => 'Successfully Updated!'
+        );
+        return response()->json($message);
+    }
+}]);
+
+
+Route::post('reseller',  ['middleware'=>['cors','apitoken'], function (Request $request) {
+    $post = $request->all();
+
+    $rules = array(
+        'email'    => 'required|email',
+        'password' => 'required'
+    );
+    
+    $validator = \Validator::make($post, $rules);
+    
+    if ($validator->fails()) {
+
+        return response()->json($validator->messages());
+
+    } else {
+    
+        $userdata = array(
+            'email'         => $request->input('email'),
+            'password'      => $request->input('password'),
+            'status'        => 1,
+            'approval'      => 1,
+            'user_type'     => 'applicant'
+        );
+    
+        if (Auth::attempt($userdata)) {
+            $user = Auth::user();
+            $update_user = User::find($user->id);
+            if(!$update_user->reseller_code) {
+                $reseller_code = strtoupper(Helper::str_random(10));
+                $find_reseller = User::where('reseller_code', $reseller_code)->get();
+                if(count($find_reseller)) {
+                    $update_user->reseller_code = strtoupper(Helper::str_random(10)).'N';
+                } else {
+                    $update_user->reseller_code = $reseller_code;
+                }
+                $update_user->update();
+            }
+            $message = array(
+                'alert' => 'success',
+                'success' => 'Successfully Login!',
+                'user' => $user,
+                'token' =>  Crypt::encryptString($user->id)
+            );
+            return response()->json($message);
+        } else {   
+            $message = array(
+                'alert' => 'danger',
+                'error' => 'Invalid Login'
+            );
+            return response()->json($message);
+    
+        }
+    }
+}]);
+
+Route::post('apply', ['middleware' => ['cors', 'apitoken'], function (Request $request) {
+
+    $post = $request->all();
+    $rules = array(
+        'email'             => 'required|email|unique:users',
+        'confirm_password'  => 'required|min:8|same:password'
+    );
+
+    $validator = \Validator::make($post, $rules);
+
+    if ($validator->fails()) {
+        return response()->json( $validator->messages()  );
+    } else {
+
+        $user = new User;
+        $user->first_name = $request->input('first_name');
+        $user->middle_name = $request->input('middle_name');
+        $user->last_name = $request->input('last_name');
+        $user->email = $request->input('email');
+        $user->password = Hash::make($request->input('confirm_password'));
+        $user->referred_by = $request->input('referred_by');
+        $user->reseller_code_used = $request->input('reseller_code');
+        $user->user_type = 'applicant';
+        $user->approval = 1;
+        $user->save();
+        $user->assignRole('applicant');
+              
+        $profile = new Profile;
+        $profile->user_id = $user->id;
+        $applicant_id = sprintf('%08d',$user->id);
+        $profile->application_number = $applicant_id;
+
+        $profile->telephone_number = $request->input('telephone_number');
+        $profile->mobile_number = $request->input('mobile_number'); 
+        $profile->apply_form_application_status = $request->input('apply_form_application_status');
+        $profile->applying_for = $request->input('applying_for');
+        $profile->state_applied = $request->input('state_applied');
+
+        $profile->birth_date = $request->input('birth_date');
+        $profile->marital_status = $request->input('marital_status');
+        $profile->home_address = $request->input('home_address');
+        $profile->city = $request->input('city');
+        $profile->postal_code = $request->input('postal_code');
+        $profile->state = $request->input('state');
+        $profile->country = $request->input('country');
+        $profile->school_name = $request->input('school_name');
+        $profile->nursing_graduation_date = $request->input('nursing_graduation_date');
+        
+        $profile->save();
+
+        $notification = new Notification;
+        $notification->from_user_id = $user->id;
+        $notification->module = 'register';
+        $notification->messages = 'New registered applicant! ['. $request->input('email').']';
+        $notification->save();
+
+        $message = array(
+            'success' => 'Account registered!',
+            'alert' => 'success'
+        );
+        return response()->json($message);
+    }
+
+}]);
+
+Route::post('register',  ['middleware'=>['cors','apitoken'], function (Request $request) {
+    $post = $request->all();
+    $rules = array(
+        'email'             => 'required|email|unique:users',
+        'first_name'        => 'required',
+        'last_name'         => 'required',
+        'confirm_password'  => 'required|min:8|same:password'
+    );
+    $validator = \Validator::make($post, $rules);
+
+    if ($validator->fails()) {
+        return response()->json($validator->messages());
+    } else {
+        $user = new User;
+        $user->first_name = $request->input('first_name');
+        $user->last_name = $request->input('last_name');
+        $user->email = $request->input('email');
+        $user->password = Hash::make($request->input('confirm_password'));
+        $user->user_type = 'applicant';
+        $user->save();
+        $user->assignRole('applicant');
+              
+        $profile = new Profile;
+        $profile->user_id = $user->id;
+        $applicant_id = sprintf('%08d',$user->id);
+        $profile->application_number = $applicant_id;
+        $profile->save();
+
+        $notification = new Notification;
+        $notification->from_user_id = $user->id;
+        $notification->module = 'register';
+        $notification->messages = 'New registered applicant! ['. $request->input('email').']';
+        $notification->save();
+
+        $link = 'http://neac.medicalexamscenter.com/login?in='.Helper::secure_enc($user->id).'&mn='.Helper::secure_enc($user->email);
+        $body = '
+            <p>Dear Applicant,</p>
+            <p>Welcome! Thank you for registering to NEAC  Medical Exams Application Center.</p>
+            <p>Here is your log in information:<br>
+                Username: <a href="mailto:'.$request->input('email').'" target="_blank">'.$request->input('email').'</a><br>
+                Applicant No.: '.$applicant_id.'
+            </p>
+            <p>To approve your account! You can login it here: <a href="'.$link.'">Link</a></p>
+        ';
+        $data = [
+            'body'      => $body,
+            'full_name'   => $request->input('first_name') .' '. $request->input('last_name'),
+            'to'         => $request->input('email')
+        ];
+        Mail::send('mails.mail', $data, function($message) use ($data) {
+            $message->to($data['to'], $data['full_name'])->subject('Account Registration');
+            $message->from('no-reply@neac.com','NEAC Medical Exams Center');
+        });
+
+        $message = array(
+            'success' => 'Please check your email for account approval!'
+        );
+        return response()->json($message);
+    }
+}]);
+
+Route::post('user/{id}/changepassword', ['middleware' => ['cors', 'apitoken'], function(Request $request, $id) {
+    $user_id = Crypt::decryptString($id);
+    $post = $request->all();
+  
+    $rules = array(
+        'old_password'     => 'required',
+        'new_password'     => 'required:different:old_password',
+        'confirm_password' => 'required|min:8|same:new_password'
+    );
+    $validator = \Validator::make($post, $rules);
+
+    if ($validator->fails()) {
+
+        return response()->json($validator->messages());
+ 
+    } else {
+        $user = User::find($user_id);
+        if (Hash::check($request->input('old_password'), $user->password)){
+            $user->password = Hash::make($request->input('confirm_password'));
+            $user->update();
+            $message = array(
+                'success' => 'Successfully Updated!'
+            );
+            return response()->json($message);
+        } else {
+            return response()->json(['old_password' => 'The specified old password does not match the database password!.']);
+        }
+    }
+
+}]);
+
+Route::get('user/{id}', ['middleware'=>['cors','apitoken'], function (Request $request, $id) {
+
+    $user_id = Crypt::decryptString($id);
+    $user = User::find($user_id);
+
+    $country = Country::where('code', $user->profile->country)->first();
+    $user['profile']['country'] = $country;
+
+
+    $services = [];
+    if($user->cart) {
+        foreach($user->cart->services as $service) {
+            $services[] = Service::find($service->service_id);
+        }
+    }
+
+    $details = array(
+        'user' => $user,
+        'profile' => $user->profile,
+        'cart_item' => $services
+    ); 
+   return response()->json($details);
+}]);
+
+Route::get('user/{id}/forms', ['middleware'=>['cors','apitoken'], function (Request $request, $id) {
+    $user_id = Crypt::decryptString($id);
+    $user = User::find($user_id);
+    
+    $form_groups = [];
+    if($user->profile->forms) {
+        $user_form_groups = explode(',', $user->profile->forms);
+        foreach($user_form_groups as $item) {
+            $form_groups_model = FormGroup::find($item);
+            $form_groups[] = array(
+                'form_group' => $form_groups_model,
+                'form_inputs' => $form_groups_model->inputs_w_value($user_id)
+            );
+        }
+    }
+    $details = array(
+        'form_groups' => $form_groups,
+    );
+   return response()->json($details);
+}]);
+
+Route::get('user/{id}/applicationstatus', ['middleware'=>['cors','apitoken'], function (Request $request, $id) {
+    $user_id = Crypt::decryptString($id);
+    $user = User::find($user_id);
+    $form_groups = [];
+    if($user->profile->application_status) {
+        $user_application_status = explode(',', $user->profile->application_status);
+        foreach($user_application_status as $item) {
+            $form_groups_model = FormGroup::find($item);
+            $form_groups[] = array(
+                'application_status_group' => $form_groups_model,
+                'application_status_inputs' => $form_groups_model->inputs_w_value($user_id),
+                'application_status_message' => $form_groups_model->application_status_message($user_id)
+            );
+        }
+    }
+    $details = array(
+        'application_status' => $form_groups,
+    );
+   return response()->json($details);
+}]);
+
+Route::post('user/{id}/saveform', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id) {
+    $user_id = Crypt::decryptString($id);
+    $posts = $request->all();
+    unset($posts['submit']);
+    unset($posts['files']);
+    foreach($posts as $key => $post) {
+        $temp =  array_pad(explode('_fi_', $key),2,null);
+        $type = $temp[0];
+        $input_id = $temp[1];
+        if( $type != '_method' && $type != '_token' ) {
+            $select_post =  Post::where('type', $type)
+                ->where('input_id', $input_id)
+                ->where('user_id', $user_id)->first();
+            if($type == 'multiple_image' || $type == 'multiple_file') {
+                    $files = $posts[$key]['name'];
+                    $files_arr = [];
+                    for( $i=0 ; $i < count($files) ; $i++ ) {
+                        $tmpFilePath = $posts[$key]['tmp_name'][$i];
+                        if ($tmpFilePath != ""){
+                           $info = pathinfo($posts[$key]['name'][$i]);
+                           $base_name =  basename($posts[$key]['name'][$i],'.'.$info['extension']);
+                           $ext = pathinfo($posts[$key]['name'][$i], PATHINFO_EXTENSION);
+                           $fileName = $base_name .'_nurse_'. time() . '.' .$ext;
+                           $newFilePath = public_path("documents") . "\'". $fileName;
+                           copy($tmpFilePath, str_replace("'", "", $newFilePath));
+                           $files_arr[] = $fileName;
+                        }
+                    } 
+                    $post = implode(',', $files_arr); 
+             
+            } else if($type == 'checkbox') {
+                $post = implode(',', $post);
+            }
+            if(empty($select_post)) {
+                // Insert POST
+                $post_save = new Post;
+                $post_save->user_id = $user_id;
+                $post_save->input_id = $input_id;
+                $post_save->type = $type;
+                $post_save->post = $post;
+                $post_save->save();
+            } else {
+                $post_update = Post::find($select_post->id);
+                $post_update->user_id = $user_id;
+                $post_update->input_id = $input_id;
+                $post_update->type = $type;
+                $post_update->post = $post;
+                $post_update->update();
+            }
+        }    
+    }
+    if($posts) {
+        $notification = new Notification;
+        $notification->from_user_id = $user_id;
+        $notification->module = 'forms';
+        $notification->url = '/applicants/'.$user_id.'/edit';
+        $notification->messages = 'Update form!';
+        $notification->save();
+    }
+    $message = array('message' => 'Successfully Updated');
+    return response()->json($message);
+}]);
+
+Route::post('user/{id}/updateprofile', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id) {
+    $user_id = Crypt::decryptString($id);
+    $posts = $request->all();
+    unset($posts['submit']);
+    unset($posts['files']);
+    $user = Profile::where('user_id', $user_id)->first();
+    $image = $user->image;
+          
+    $tmpFilePath = $posts['image']['tmp_name'];
+    if ($tmpFilePath != ""){
+        $info = pathinfo($posts['image']['name']);
+        $base_name =  basename($posts['image']['name'],'.'.$info['extension']);
+        $ext = pathinfo($posts['image']['name'], PATHINFO_EXTENSION);
+        $fileName = $base_name .'_nurse_'. time() . '.' .$ext;
+        $newFilePath = public_path("documents") . "\'". $fileName;
+        copy($tmpFilePath, str_replace("'", "", $newFilePath));
+        $image = $fileName;
+    }
+    if($posts) {
+        $notification = new Notification;
+        $notification->from_user_id = $user_id;
+        $notification->module = 'profile';
+        $notification->url = '/applicants/'.$user_id.'/edit';
+        $notification->messages = 'update profile.';
+        $notification->save();
+    }
+
+    $user->update( array_merge($request->all(), ['image' => $image ] ) );
+    $message = array('message' => 'Successfully Updated');
+    return response()->json($message);
+}]);
+
+Route::get('user/{id}/{email}/getmails', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id, $email) {
+    $user_id = Crypt::decryptString($id);
+    $mails = User::find($user_id);
+    $return_mails = array(
+        'mails' => $mails->mails
+    );
+    return response()->json($return_mails);
+}]);
+
+Route::get('country', ['middleware' => ['cors', 'apitoken'], function () {
+    $country = Country::all();
+    return response()->json($country);
+}]);
+
+Route::get('services', ['middleware' => ['cors', 'apitoken'], function () {
+    $services = Service::all();
+    return response()->json($services);
+}]);
+
+Route::post('user/{id}/savetestimonial', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id) {
+    $user_id = Crypt::decryptString($id);
+    $posts = $request->all();
+    unset($posts['submit']);
+    unset($posts['files']);
+    $testimonials = new Testimonial;
+    $attachments = '';
+    if(isset($posts['attachments'])) {
+        $files = $posts['attachments']['name'];
+        $files_arr = [];
+        for( $i=0 ; $i < count($files) ; $i++ ) {
+            $tmpFilePath = $posts['attachments']['tmp_name'][$i];
+            if ($tmpFilePath != ""){
+            $info = pathinfo($posts['attachments']['name'][$i]);
+            $base_name =  basename($posts['attachments']['name'][$i],'.'.$info['extension']);
+            $ext = pathinfo($posts['attachments']['name'][$i], PATHINFO_EXTENSION);
+            $fileName = $base_name .'_nurse_'. time() . '.' .$ext;
+            $newFilePath = public_path("documents") . "\'". $fileName;
+            copy($tmpFilePath, str_replace("'", "", $newFilePath));
+            $files_arr[] = $fileName;
+            }
+        } 
+        $attachments = implode(',', $files_arr); 
+    }
+
+    $testimonials->create( array_merge($request->all(), [
+        'attachments' => $attachments,
+        'user_id' => $user_id
+    ] ) );
+    $message = array('message' => 'Successfully Submitted!');
+    return response()->json($message);
+}]);
+
+Route::get('testimonials/{id}', ['middleware' => ['cors', 'apitoken'], function($id){
+    $testimonial_category = [];
+    if($id == 'footer') {
+        $testimonial_category = [1];
+    } else {
+        $testimonial_category = [$id];
+    }
+
+    $testimonials = Testimonial::where('testimonials.status', 1)
+    ->leftJoin('users', 'users.id', '=', 'testimonials.user_id')
+    ->leftJoin('profiles', 'profiles.user_id', '=', 'testimonials.user_id')
+    ->whereIn('testimonials.category', $testimonial_category)
+    ->select('testimonials.*', 'users.first_name', 'users.last_name', 'profiles.image as image', 'testimonials.image as testimonial_image')
+    ->orderBy('id', 'DESC')
+    ->paginate(10);
+
+    return response()->json($testimonials);
+}]);
+
+
+
+Route::get('servicecategories', ['middleware' => ['cors', 'apitoken'], function(){
+    $service_category = ServiceCategory::all();
+    $return = [];
+    foreach($service_category as $service_cat) {
+        $services = Service::where('category_id', $service_cat->category_id)->where('status', 1);
+        if(!$services->limit(1)->get()->isEmpty()) {
+            $return[] = array(  
+                'service_category' => $service_cat,
+                'services' => $services->limit(5)->get()
+            );
+        }
+    }
+    return response()->json($return);
+}]);
+
+Route::get('servicecategory/{id}', ['middleware' => ['cors', 'apitoken'], function($id){
+    $new_id = Helper::secure_enc($id, 'd');
+    $service_category = ServiceCategory::find($new_id);
+    $services = Service::where('category_id', $service_category->category_id)->where('status', 1)->get();
+
+    $states_arr = [];
+    $states = [];
+    $type_arr = [];
+    foreach($services as $service) {
+        if($service->state) {
+            $states_arr[] = $service->state;
+        }
+        if(!in_array($service->type, $type_arr)) {
+            $type_arr[] = $service->type;
+        }
+    }
+    if(count($states_arr) > 0) {
+        $states_temp = implode("\r\n", $states_arr);
+        $states = explode("\r\n", $states_temp);
+    }
+
+    $return = array(  
+        'service_category' => $service_category,
+        'services' => $services,
+        'states' => $states,
+        'type' => $type_arr
+    );
+    return response()->json($return);
+}]);
+
+Route::post('cartitemsession', ['middleware' => ['cors', 'apitoken'], function(Request $request){
+    // return response()->json($request->all());
+    $cart_item = $request->all();
+    $services = Service::whereIn('id', $cart_item)->get();
+    return response()->json($services);
+}]);
+
+Route::get('getcart/{id}', ['middleware'=>['cors','apitoken'], function (Request $request, $id) {
+
+    $user_id = Crypt::decryptString($id);
+    $user = User::find($user_id);
+
+    $services = [];
+    if($user->cart) {
+        foreach($user->cart->services as $service) {
+            $services[] = Service::find($service->service_id);
+        }
+    }
+    $details = array(
+        'cart_item' => $services,
+    ); 
+
+   return response()->json($details);
+}]);
+
+Route::post('user/{id}/addcart', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id) {
+    $user_id = Crypt::decryptString($id);
+    $service_id = Helper::secure_enc($request->input('ns'), 'd');
+    
+    $cart = Cart::where('user_id', $user_id)->where('status', 0)->first();
+    $max_id = Cart::max('id');
+    $cart_id = 0;
+    if(!$cart) {
+        $save_cart = new Cart;
+        $order_no = sprintf('%05d',$max_id + 1);
+        $save_cart->user_id = $user_id;
+        $save_cart->order_no = $order_no;
+        $save_cart->total = 0;
+        $save_cart->current_currency = 0;
+        $save_cart->save();
+        $cart_id = $save_cart->id;
+    } else {
+        $cart_id = $cart->id;
+    }
+
+    $cart_item = CartItem::where('cart_id', $cart_id)->where('service_id', $service_id)->first();
+    if(!$cart_item) {
+        $save_item = new CartItem;
+        $save_item->cart_id = $cart_id;          
+        $save_item->service_id = $service_id;
+        $save_item->save();
+        $message = array(
+            'message' => 'Item save to your cart!',
+            'type' => 'success',
+            'service_id' => $service_id
+        );
+
+        $service_not = Service::find($service_id);
+
+        $notification = new Notification;
+        $notification->from_user_id = $user_id;
+        $notification->module = 'add_cart';
+        $notification->messages = $service_not->name.' is added to cart';
+        $notification->save();
+
+    } else {
+        $message = array(
+            'message' => 'This is is already in your cart!',
+            'type' => 'warning',
+            'service_id' => $service_id
+        );
+    }
+    return response()->json($message);
+}]);   
+
+Route::post('user/{id}/removeitem', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id) {
+    $user_id = Crypt::decryptString($id);
+    $service_id = Helper::secure_enc($request->input('ns'), 'd');
+    $cart_id = Helper::secure_enc($request->input('nc'), 'd');
+
+    $cart = Cart::where('user_id', $user_id)->where('id', $cart_id)->first();
+   
+    if($cart) {
+        $cart_item = CartItem::where('service_id', $service_id)->where('cart_id', $cart_id)->delete();
+        $message = array(
+            'message' => 'Service removed!',
+            'type' => 'success',
+        );
+    } else {
+        $message = array(
+            'message' => 'Something wrong with removing item!',
+            'type' => 'warning',
+        );
+    }
+    return response()->json($message);
+
+}]); 
+
+Route::get('getpaymenthistory/{email}', ['middleware' => ['cors', 'apitoken'], function ($email) {
+
+    $user = User::where('email', $email)->first();
+    $data = [];
+    if($user) {
+        $offline = Cart::where('user_id', $user->id)->where('payment_mode', '<>', 'shopify')->orderBy('id', 'DESC')->get();
+        $cart = Cart::where('user_id', $user->id)->select('order_no','status')->get();
+        $config = array(
+            'ShopUrl' => 'neacmed.myshopify.com',
+            'ApiKey' => 'be5742c03c8b43d8fc7c493fc0be31b9',
+            'Password' => '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',
+        );
+        $shopify = new \PHPShopify\ShopifySDK($config);
+        $params = array(
+            'email' => $email,
+            'fields' => 'id,line_items,name,total_price,email,order_status_url,currency,financial_status,gateway,note,order_status_url,customer,created_at,presentment_currency,subtotal_price_set,total_tax_set,total_price_set'
+        );
+        $shopify_orders = $shopify->Order->get($params);
+
+        $cart_arr = array();
+        foreach($cart as $item) {
+            $cart_arr[$item->order_no] = $item->status;
+        }
+
+        $data['offline'] = $offline;
+        $data['shopify'] = $shopify_orders;
+        $data['cart'] = $cart_arr;
+    }
+    return response()->json($data);
+}]);
+
+Route::get('getcurrency', ['middleware' => ['cors', 'apitoken'], function () {
+    $currency = Currency::find(1);
+    return response()->json($currency);
+}]);
+
+Route::post('processtransaction/{id}', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id) {
+    $all = $request->all();
+    $post = $all['info'];
+    $cart_item = $all['cart_item'];
+    $test = [];
+
+    
+    $currency = Currency::find(1);
+    $services = [];
+    if($id == '0') {
+        $services = Service::whereIn('id', $cart_item)->get();
+    } else {
+        $user_id = Crypt::decryptString($id);
+        $userx = User::find($user_id);
+        if($userx->cart) {
+            foreach($userx->cart->services as $service) {
+                $services[] = Service::find($service->service_id);
+            }
+        }
+    }
+
+    $total_temp = 0;
+    $total = 0;
+    $code = 'USD';
+
+    foreach($services as $item) {
+        $total_temp = $total_temp + $item->price;
+    }
+
+    if($post['payment_mode'] == 'dragonpay' || $post['payment_mode'] == 'paymaya') {
+        $total_x = $total_temp * ($currency->value + $currency->additional);
+        $total = round( (($total_x * $currency->vat) + $total_x)  ,2);
+        $code = 'PHP';
+    } else {
+        $total = round( (($total_temp * $currency->vat ) + $total_temp), 2);
+    }
+
+    $receipt = [];
+    if($post['payment_mode'] == 'paypal') {
+        $receipt['paymentId'] = $post['paymentId']; 
+        $receipt['PayerID'] = $post['PayerID']; 
+    } else if ($post['payment_mode'] == 'paymaya') {
+        $receipt['paymentId'] = $post['refno']; 
+    }
+
+    
+    if($id == '0') { // No user Insert Data
+        $user = User::where('email', urldecode($post['email']))->first();
+        if($user) {
+            $cart = new Cart;
+            $max_id = Cart::max('id'); 
+            $cart = new Cart;
+            $order_no = sprintf('%05d',$max_id + 1);
+            $cart->user_id = $user->id;
+            $cart->order_no = $order_no;
+            $cart->status = 1;
+            $cart->payment_mode = $post['payment_mode'];
+            $cart->currency = $code;
+            $cart->total = $total;
+            $cart->receipt = json_encode($receipt);
+            $cart->current_currency = $currency->value .'::' . $currency->additional .'::'. $currency->vat;
+            $cart->payed_at = date('Y-m-d H:i:s');
+            $cart->save();
+            
+            foreach($cart_item as $item) {
+                $cart_item = new CartItem;
+                $cart_item->cart_id = $cart->id;
+                $cart_item->service_id = $item;
+                $cart_item->save();
+            }
+        
+            $notification = new Notification;
+            $notification->from_user_id = $user->id;
+            $notification->module = 'purchase';
+            $notification->messages = 'Purchased!' ;
+            $notification->save();
+
+            $message = array(
+                'message' => 'Transaction is completed!',
+                'alert'  => 'success',
+                'status' => 1,
+                'account' => 'old',
+                'user_id' => Crypt::encryptString($user->id),
+                'order_no' => $order_no,
+                'type' => 'no_session_but_existing_accnt'
+            );
+
+        } else {
+
+            $password = Helper::str_random(8);
+            $user = new User;
+            $user->first_name = urldecode($post['first_name']);
+            $user->middle_name = urldecode($post['middle_name']);
+            $user->last_name = urldecode($post['last_name']);
+            $user->email = urldecode($post['email']);
+            $user->password = Hash::make($password);
+            $user->approval = 1;
+            $user->user_type = 'applicant';
+            $user->save();
+            $user->assignRole('applicant');
+                
+            $profile = new Profile;
+            $profile->user_id = $user->id;
+            $applicant_id = sprintf('%08d',$user->id);
+            $profile->application_number = $applicant_id;
+            $profile->mobile_number = urldecode($post['mobile_number']);
+            $profile->home_address = urldecode($post['home_address']);
+            $profile->save();
+
+    
+            $max_id = Cart::max('id'); 
+            $cart = new Cart;
+            $order_no = sprintf('%05d',$max_id + 1);
+            $cart->user_id = $user->id;
+            $cart->order_no = $order_no;
+            $cart->status = 1;
+            $cart->payment_mode = $post['payment_mode'];
+            $cart->currency = $code;
+            $cart->total = $total;
+            $cart->receipt = json_encode($receipt);
+            $cart->current_currency = $currency->value .'::' . $currency->additional .'::'. $currency->vat;
+            $cart->payed_at = date('Y-m-d H:i:s');
+            $cart->save();
+            
+            foreach($cart_item as $item) {
+                $cart_item = new CartItem;
+                $cart_item->cart_id = $cart->id;
+                $cart_item->service_id = $item;
+                $cart_item->save();
+            }
+        
+            $notification = new Notification;
+            $notification->from_user_id = $user->id;
+            $notification->module = 'register-checkout';
+            $notification->messages = 'New registered applicant with purchase! ['. urldecode($post['email']).']';
+            $notification->token = $password;
+            $notification->save();
+
+            $message = array(
+                'message' => 'Transaction is completed!',
+                'alert'  => 'success',
+                'status' => 1,
+                'account' => 'new',
+                'user_id' => Crypt::encryptString($user->id),
+                'order_no' => $order_no,
+                'type' => 'totally_new_user'
+            );
+        }
+
+    } else { // Has user Update existing
+
+        $user_id = Crypt::decryptString($id);
+    
+        $cart = Cart::where('user_id', $user_id)->where('status', 0)->first();
+        if($cart) {
+            $cart->status = 1;
+            $cart->payment_mode = $post['payment_mode'];
+            $cart->currency = $code;
+            $cart->total = $total;
+            $cart->receipt = json_encode($receipt);
+            $cart->current_currency = $currency->value .'::' . $currency->additional .'::'. $currency->vat;
+            $cart->payed_at = date('Y-m-d H:i:s');
+            $cart->update();
+
+            $notification = new Notification;
+            $notification->from_user_id = $user_id;
+            $notification->module = 'purchase';
+            $notification->messages =  'Purchased!' ;
+            $notification->save();
+
+            $message = array(
+                'message' => 'Transaction is completed!',
+                'alert'  => 'success',
+                'status' => 1,
+                'account' => 'old',
+                'user_id' => $id,
+                'order_no' => $cart->order_no,
+                'type' => 'login_user'
+            );
+        } else {
+            $cart = Cart::where('user_id', $user_id)->where('status', 1)->orderBy('id', 'DESC')->first();
+            $message = array(
+                'message' => 'Transaction is already completed!',
+                'alert'  => 'success',
+                'status' => 1,
+                'account' => 'old',
+                'user_id' => $id,
+                'order_no' => $cart->order_no,
+                'type' => 'login_user'
+            );
+        }
+
+    }
+    return response()->json($message);
+}]);
+
+Route::get('thankyou/{id}/{or}', ['middleware' => ['cors', 'apitoken'], function ($id, $or) {
+    $user_id = Crypt::decryptString($id);
+    $user = User::find($user_id);
+
+    $cart = Cart::where('status', 1)->where('order_no', $or)->where('user_id', $user_id)->first();
+    $cart_items = CartItem::where('cart_id', $cart->id)->get();
+    $service_arr = [];
+    foreach($cart_items as $item) {
+        $service_arr[]  = Service::find($item->service_id);
+    }
+    $message = array(
+        'status' => 1,
+        'cart' => $cart,
+        'cart_items' => $service_arr,
+    );
+    return response()->json($message);
+}]);
+
+Route::get('getreseller', ['middleware' => ['cors', 'apitoken'], function () {
+    $reseller = User::whereNotNull('reseller_code')->select('id', 'first_name', 'last_name', 'email')->orderBy('first_name', 'ASC')->get();
+    return response()->json($reseller);
+}]);
+
+Route::post('refer/{id}', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id) {
+
+    $user_id = Crypt::decryptString($id);
+    $check_referred = UserReferred::where('user_id', $user_id)->where('email', $request->input('email'))->get();
+    if(count($check_referred)) {
+        $message = array(
+            'message' => 'Email already exist!',
+            'alert' => 'warning'
+        );
+    } else {
+        $refer = new UserReferred;
+        $refer->create(
+            array_merge($request->all(),[
+                'user_id' => $user_id,
+                'reseller_code' => User::find($user_id)->reseller_code
+            ])
+        );
+        $message = array(
+            'message' => 'Successfully Referred!',
+            'alert' => 'success'
+        );
+    }
+    return response()->json($message);
+    //return response()->json($request->all());
+
+}]);
+
+Route::get('getrefer/{id}', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id) {
+    $user_id = Crypt::decryptString($id);
+    $user = User::find($user_id);
+    
+    $completed_count = 0;
+    $total_earn = 0;
+    $total_deposit = 0;
+    $total_balance = 0;
+
+    $check_referred_temp = UserReferred::where('user_id', $user->id)->orderBy('id', 'DESC');
+    $registered_reffered_temp = User::where('reseller_code_used', $user->reseller_code)
+                            ->leftJoin('users_referred', 'users.email', '=', 'users_referred.email')
+                            ->leftJoin('carts', 'users.id', '=', 'carts.user_id')
+                            ->where('users_referred.user_id', $user->id)
+                            ->select('users_referred.*','carts.status as cart_status')
+                            ->orderBy('users.id', 'DESC')
+                            ->groupBy('users.id');
+                            
+    $check_referred =  $check_referred_temp->get();
+    $registered_reffered = $registered_reffered_temp->get();
+
+    $completed_count = $registered_reffered_temp->whereNotNull('carts.status')->get()->count();
+    //$paid_count = $registered_reffered_temp->where('users_referred.status', 1)->get()->count();
+    $paid_count = UserReferred::where('user_id', $user->id)->where('status',1)->orderBy('id', 'DESC')->get()->count();
+
+    $total_earn = $completed_count * $user->reseller_prize;
+    $total_deposit = $paid_count  * $user->reseller_prize;
+    $total_balance = $total_earn - $total_deposit;
+
+    $return = array(
+        'reffered' => $check_referred,
+        'registered_referred' => $registered_reffered, 
+        'completed' => $completed_count,
+        'total_earn' => $total_earn,
+        'total_deposit' => $total_deposit,
+        'total_balance' => $total_balance            
+    );
+    return response()->json($return);
+}]);
+

@@ -1,0 +1,22 @@
+Check Out From Shop Site
+
+- Create Account
+  - Personal/Sole Proprietor 
+	- Applicable to default to ni woocommerce also the fields.
+  - Corporate Account 
+	- I think eto custom develop/plugin to ksi may special fields na kailangan.
+	- If plugin "User Extend Profile, User Meta, Ultimate Membership Etc."
+	- In case nito, Company at marami authorized personel - Possible
+
+- Login
+  - Guest
+	- Applicable to default to ni woocommerce also the fields.
+  - Corporate at Personal/Sole Proprietor
+	- Default nrin to once na magawa yung signup pati yung authorized personel makakaorder
+
+- Payment method
+  - Credit card, Gcash, Paypal, Paymaya, COD, Bank Transfer
+ 	- Applicable na ntin to
+  - Payment Term
+	- I think gawin nlng ntin syang prang gateway na may form tpos makikita sa order once na maprocess yung order gwin nlng nila manual like pag collections at validate ng profile
+
