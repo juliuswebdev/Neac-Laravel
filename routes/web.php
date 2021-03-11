@@ -36,11 +36,17 @@ Route::group(['middleware' => ['auth']], function() {
 
     // Applicants
     Route::resource('/applicants','ApplicantController');
+    Route::get('/lockedapplicants','ApplicantController@lockedlist')->name('applicants.lockedlist');
+    Route::post('/lockedapplicants/{id}','ApplicantController@lockedlistunlock')->name('applicants.lockedlist.unlock');
+
     Route::post('/applicants/{id}/resetpassword','ApplicantController@resetpassword')->name('applicants.resetpassword');
     Route::post('/applicants/{id}/lock','ApplicantController@lock')->name('applicants.lock');
     Route::post('/applicants/{id}/approve','ApplicantController@approve')->name('applicants.approve');
 
     Route::post('/post/{id}/update', 'ApplicantController@post_update')->name('post.update');
+
+    Route::post('/approvereactivation/{id}', 'ApplicantController@approvereactivation')->name('applicant.approvereactivation');
+    
 
     // Employees
     Route::resource('/employees','EmployeeManagementController');
@@ -83,7 +89,6 @@ Route::group(['middleware' => ['auth']], function() {
     Route::resource('/roles-permissions', 'RolePermissionController');
     Route::post('/roles-permissions/assign-permissionto-role', 'RolePermissionController@assignpermissiontorole')->name('assignpermissiontorole');
 
-
     Route::resource('/services','ServicesController');
     Route::post('/services/activate/{id}','ServicesController@activate')->name('services.activate');
     Route::post('/services/deactivate/{id}','ServicesController@deactivate')->name('services.deactivate');
@@ -93,7 +98,7 @@ Route::group(['middleware' => ['auth']], function() {
 
 });
 
-// Route::get('/spatieclearcache', function(){
-//     app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
-// });
+Route::get('/spatieclearcache', function(){
+    app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+});
 // Route::get('/seedpermission', 'RolePermissionController@seedpermission')->name('seedpermission');

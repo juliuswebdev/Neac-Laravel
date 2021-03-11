@@ -24,7 +24,7 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password','user_type','first_name','middle_name','last_name','approval', 'profession', 'reseller_code', 'reseller_prize', 'reseller_code_used', 'lock_status', 'lock_user_id'
+        'name', 'email', 'password','user_type','first_name','middle_name','last_name','approval', 'profession', 'reseller_code', 'reseller_prize', 'reseller_code_used', 'lock_status', 'lock_user_id', 'lock_date'
     ];
 
     /**
@@ -90,6 +90,10 @@ class User extends Authenticatable
         ];
         $other['email_reset_password_portal_link'] = route('password.reset', ['token' => $token, 'email' => $this->email]);
         Helper::mail_formatter(16, $this, $other);
+    }
+
+    public function admin_locked($id){
+        return User::find($id);
     }
 
 }

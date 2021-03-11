@@ -14,8 +14,10 @@ $(function () {
     $('#applicant_year').change(function(){
         applicant_chart($(this).val());
     });
-    applicant_chart(2020);
+
+    applicant_chart($('#applicant_year').val());
     var salesChart;
+
     function applicant_chart(year) {
         var ticksStyle = {
         fontColor: '#495057',

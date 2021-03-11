@@ -138,20 +138,29 @@
                                         </div>
 
                             @endif
-                            <div class="col-md-1">
+                            <div class="col-md-2">
                                 <div class="form-group">
                                     <label>Sort</label>
                                     <input type="number" class="form-control" name="sort" value="{{ $item->sort }}"  min="0">
                                 </div>
                             </div>
-                            <div class="col-md-5">
-                            <div class="form-group">
-                                <label>Is Required?</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" name="required" value="1" type="checkbox" @if($item->required) checked @endif>
-                                    <label class="form-check-label">Yes/No</label>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>Is Required?</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" name="required" value="1" type="checkbox" @if($item->required) checked @endif>
+                                        <label class="form-check-label">Yes/No</label>
+                                    </div>
                                 </div>
                             </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>Visible to Applicant?</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" name="visible_applicant" value="1" type="checkbox" @if($item->visible_applicant) checked @endif>
+                                        <label class="form-check-label">Yes/No</label>
+                                    </div>
+                                </div>
                             </div>
                             <div class="row col-md-12">
                                 <div class="col-md-4">

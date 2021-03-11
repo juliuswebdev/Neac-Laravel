@@ -1,3 +1,4 @@
+.lib { display: inline-block; }
 .user-panel .image { width: 50px; height: 50px; border-radius: 100%; overflow: hidden; position: relative; border: 1px solid #4e4e4e}
 .user-panel .image img { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: unset; max-width: 70px; width: auto; }
 .user-panel .info { padding-top: 12px; width: calc(100% - 50px); }

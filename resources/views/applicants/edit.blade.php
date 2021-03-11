@@ -187,7 +187,7 @@
                         @endforeach
                     </ul>
                     </div>
-                    <div id="collapseOne" class="panel-collapse collapse in @php echo ($fgt == 1) ? 'show' : ''; @endphp">
+                    <div id="collapseOne" class="panel-collapse collapse in @php echo ($fgt == '1') ? 'show' : ''; @endphp">
                         <div class="tab-content">
                             @foreach($application_status as $application_form)
                                 @php 
@@ -270,7 +270,7 @@
                         @endforeach
                     </ul>
                     </div>
-                    <div id="collapseTwo" class="panel-collapse collapse in @php echo ($fgt == 0) ? 'show' : ''; @endphp">
+                    <div id="collapseTwo" class="panel-collapse collapse in @php echo ($fgt == '0') ? 'show' : ''; @endphp">
                         <div class="tab-content">
                             @foreach($forms as $application_form)
                                 @php 
@@ -288,6 +288,19 @@
                             <div class="card card-outline card-success tab-pane {{ $active }}" id="tab_{{ $application_form->id }}">
                                 <div class="card-header">
                                     <h3 class="card-title">{{ $application_form->name }}</h3>
+                                    @php
+                                        $reapprove = explode(',',$user->profile->forms_reactivate);
+                                        if(in_array($application_form->id, $reapprove)) {
+                                    @endphp
+                                    <form action="{{ route('applicant.approvereactivation', $user->id) }}" method="POST" style="float: right;" class="mb-0">
+                                        @csrf
+                                        @method('post')
+                                        <input type="hidden" name="form_group_id" value="{{ $application_form->id }}">
+                                        <button type="submit" class="btn btn-success">Approve Reactivation</button>
+                                    </form>
+                                    @php
+                                        }
+                                    @endphp
                                 </div>
                                 <div class="card-body">
                                     @if(auth()->user()->user_type == 'admin')

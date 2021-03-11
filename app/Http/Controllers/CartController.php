@@ -85,8 +85,16 @@ class CartController extends Controller
         $next = last($shopify_orders)['id'];
         $prev = current($shopify_orders)['id'];
 
-        $first = $shopify->Order->get(array('limit' => 1, 'fields' => 'id'))[0]['id'];
-        $last = $shopify->Order->get(array('since_id' => 0, 'limit' => 1, 'fields' => 'id'))[0]['id'];
+        $first_temp = $shopify->Order->get(array('limit' => 1, 'fields' => 'id'));
+        $last_temp =  $shopify->Order->get(array('since_id' => 0, 'limit' => 1, 'fields' => 'id'));
+        $first = 0;
+        $last = 0;
+        if(isset($first_temp[0])) {
+            $first = $first_temp[0]['id'];
+        }
+        if(isset($last_temp[0])) {
+            $last = $last_temp[0]['id'];
+        }
 
         $shopify_orders_count = $shopify->Order->count();
 

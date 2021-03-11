@@ -346,17 +346,26 @@
                                       </div>
                                     </div>
                                     ${settings}
-                                    <div class="col-md-1">
+                                    <div class="col-md-2">
                                       <div class="form-group">
                                           <label>Sort</label>
                                           <input type="number" class="form-control" name="sort" value="0" min="0">
                                       </div>
                                     </div>
-                                    <div class="col-md-5">
+                                    <div class="col-md-2">
                                       <div class="form-group">
                                           <label>Is Required?</label>
                                           <div class="form-check">
                                               <input class="form-check-input" name="required" value="1" type="checkbox">
+                                              <label class="form-check-label">Yes/No</label>
+                                          </div>
+                                      </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                      <div class="form-group">
+                                          <label>Visible to Applicant?</label>
+                                          <div class="form-check">
+                                              <input class="form-check-input" name="visible_applicant" value="1" type="checkbox">
                                               <label class="form-check-label">Yes/No</label>
                                           </div>
                                       </div>

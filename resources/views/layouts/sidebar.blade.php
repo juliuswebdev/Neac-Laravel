@@ -23,7 +23,7 @@
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
 
                 @can('applicant-list')    
-                    <li class="nav-item has-treeview @if($routename == 'applicants.index' || $routename == 'applicants.create') menu-open @endif">
+                    <li class="nav-item has-treeview @if($routename == 'applicants.index' || $routename == 'applicants.create' || $routename == 'applicants.lockedlist') menu-open @endif">
                         <a href="javascript:void(0)" class="nav-link">
                             <i class="nav-icon fas fa-user-nurse"></i>
                             <p>Applicants<i class="right fas fa-angle-left"></i></p>
@@ -38,7 +38,12 @@
                             <li class="nav-item @if($routename == 'applicants.index') active @endif">
                                 <a href="{{ route('applicants.index') }}" class="nav-link"><p>Applicants</p></a>
                             </li>
-                            @endcan    
+                            @endcan  
+                            @can('applicant-list-locked')
+                            <li class="nav-item @if($routename == 'applicants.lockedlist') active @endif">
+                                <a href="{{ route('applicants.lockedlist') }}" class="nav-link"><p>Locked Applicants</p></a>
+                            </li>
+                            @endcan 
                         </ul>
                     </li>
                 @endcan
@@ -64,7 +69,7 @@
                 </li>
                 @endcan
 
-                <li class="nav-item has-treeview">
+                <!-- <li class="nav-item has-treeview">
                     <a href="#" class="nav-link">
                         <i class="nav-icon far fa-list-alt"></i>
                         <p>Services<i class="right fas fa-angle-left"></i></p>
@@ -80,7 +85,7 @@
                         </li>
                    
                     </ul>
-                </li>
+                </li> -->
                 
                 @can('transactions')
                 <li class="nav-item has-treeview @if($routename == 'transactions.index') menu-open @endif">
@@ -144,13 +149,13 @@
                             </li> 
                             @endcan
 
-                            <li class="nav-item">
+                            <!-- <li class="nav-item">
                                 <a href="{{ route('service-category.index') }}" class="nav-link"><p>Service Category</p></a>
                             </li> 
 
                             <li class="nav-item">
                                 <a href="{{ route('currency.index') }}" class="nav-link"><p>Currency</p></a>
-                            </li> 
+                            </li>  -->
 
                             @can('roles-permissions-list')
                                 <li class="nav-item @if($routeparent == 'roles-permissions') active @endif">

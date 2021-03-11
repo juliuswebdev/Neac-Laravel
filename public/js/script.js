@@ -143,7 +143,7 @@ $(document).ready(function(){
       autoUpdateInput: false,
     });
     $('.date_range_picker_js2').on('apply.daterangepicker', function(ev, picker) {
-      $(this).val(picker.startDate.format('YYYY-MM-DD') + '::' + picker.endDate.format('YYYY-MM-DD'));
+      $(this).val(picker.startDate.format('YYYY-MM-DD') + ' :: ' + picker.endDate.format('YYYY-MM-DD'));
     });
 
     $('.color_picker_js').colorpicker();
@@ -393,9 +393,17 @@ $(document).ready(function(){
                 $(this).html('<i class="fas fa-lock"></i><span class="ml-1">'+res.user+'</span>');
               } else {
                 $(this).html('<i class="fas fa-unlock"></i><span class="ml-1">Unlock</span>');
+                window.opener.location.reload();
+                window.close();
+                
               }
             }
         });
+    });
+
+    $('.btn-edit-lock').click(function(){
+      $(this).removeClass('btn-primary');
+      $(this).addClass('btn-default');
     });
 
     $('.activate-function a').click(function(e){

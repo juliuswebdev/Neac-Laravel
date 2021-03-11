@@ -375,7 +375,7 @@
                             
                             @foreach($status->application_status_report as $report)
                                 @php $count1 = 0; @endphp
-                                <div class="status_report " style="margin-bottom: 20px;">{{ $report->application_status_message }}<br><small>[{{ $report->label }}]</small>
+                                <div class="status_report " style="margin-bottom: 20px;">{{ $report->application_status_message }}<br><small>[{{ $report->label }}] </small>
                                     <div class="modal fade" id="dashboard-status-{{ $report->id }}-modal" aria-hidden="true">
                                         <div class="modal-dialog" style="max-width: 1400px;">
                                             <div class="modal-content">
@@ -401,7 +401,8 @@
                                                         <tbody>
                                                             
                                                         @foreach($application_status_report as $data_user)
-                                                            @if($report->application_status_message == $data_user->application_status_message)
+
+                                                            @if($report->id == $data_user->input_id)
                                                                     @php $count1++; @endphp
                                                                     <tr style="cursor: pointer">
                                                                         <th>{{ $count1 }}</th>
@@ -442,8 +443,6 @@
                     </div>
                 @endif
             @endforeach
-
-
         </div>
     </div>
 </section>

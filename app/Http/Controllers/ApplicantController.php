@@ -38,6 +38,7 @@ class ApplicantController extends Controller
         $this->middleware('permission:applicant-show', ['only' => ['show']]);
         $this->middleware('permission:applicant-edit', ['only' => ['edit', 'update']]);
         $this->middleware('permission:applicant-delete', ['only' => ['destroy', 'activate']]);
+        $this->middleware('permission:applicant-list-locked', ['only' => ['lockedlist', 'lockedlistunlock']]);
     }
     
     public function index()
@@ -364,6 +365,7 @@ class ApplicantController extends Controller
         if($user->lock_status == 0) {
             $user->lock_status = 1;
             $user->lock_user_id = auth()->user()->id;
+            $user->lock_date = date('Y-m-d');
             $user->update();
         }
 
@@ -671,6 +673,20 @@ class ApplicantController extends Controller
         
     }
 
+    public function lockedlist() {
+        $users = User::where('user_type','applicant')->where('lock_status', 1)->orderBy('id','DESC')->paginate(100);
+        return view('applicants.lockedlist')->with(['nurses' => $users]);
+    }
+
+    public function lockedlistunlock(Request $request, $id) {
+        $user = User::find($id);
+        $user->lock_status = null;
+        $user->lock_user_id = null;
+        $user->lock_date = null;
+        $user->update();
+        return redirect()->back();
+    }
+
     public function lock(Request $request, $id) {
         $user = User::find($id);
         if($user->lock_status) {
@@ -680,6 +696,7 @@ class ApplicantController extends Controller
         } else {
             $user->lock_status = 1;
             $user->lock_user_id = auth()->user()->id;
+            $user->lock_date = date('Y-m-d');
             $return = array('status' => 1, 'user' => auth()->user()->email);
         }
         $user->update();
@@ -691,6 +708,24 @@ class ApplicantController extends Controller
         $user->approval = 1;
         $user->update();
         return response()->json($user);
+    }
+
+    public function approvereactivation(Request $request, $id) {
+        $user = User::find($id);
+        $f_a = explode(',',$user->profile->forms_reactivate);
+        $f_l = explode(',',$user->profile->forms_lock);
+      
+        if (($key = array_search($request->input('form_group_id'), $f_a)) !== false) {
+            unset($f_a[$key]);
+        }
+
+        if (($key = array_search($request->input('form_group_id'), $f_l)) !== false) {
+            unset($f_l[$key]);
+        }
+        $user->profile->forms_reactivate = implode(',', $f_a);
+        $user->profile->forms_lock = implode(',', $f_l);
+        $user->profile->update();
+        return redirect()->back();
     }
 
 }

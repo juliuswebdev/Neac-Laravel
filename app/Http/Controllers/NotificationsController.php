@@ -14,7 +14,16 @@ class NotificationsController extends Controller
     public function index()
     {
         //
-        $notifications = Notification::orderBy('created_at', 'DESC')->paginate(50);
+        $date_filter = (isset($_GET['date_filter'])) ? trim( $_GET['date_filter']) : '';
+        $query = Notification::orderBy('created_at', 'DESC');
+                            
+        if($date_filter) {
+            $date_filter = explode('::', $date_filter);
+            $query->whereBetween('created_at', [trim($date_filter[0]), trim($date_filter[1])]);
+        }
+        
+        $notifications = $query->paginate(100);
+
         return view('notifications.index')->with('notifications', $notifications);
     }
 

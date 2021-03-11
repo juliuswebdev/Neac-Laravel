@@ -117,7 +117,7 @@
                           @endcan
 
                           @can('applicant-edit')
-                          <a onclick="open_window('{{ route('applicants.edit',$user->id) }}')" href="javascript:void(0)" class="btn btn-sm @php echo ($user->lock_user_id) ? 'btn-default' : 'btn-primary'; @endphp" title="@php echo ($user->lock_user_id) ? 'Account locked!' : 'Edit'; @endphp"><i class="fas fa-edit"></i></a>
+                          <a onclick="open_window('{{ route('applicants.edit',$user->id) }}')" href="javascript:void(0)" class="btn-edit-lock btn btn-sm @php echo ($user->lock_user_id) ? 'btn-default' : 'btn-primary'; @endphp" title="@php echo ($user->lock_user_id) ? 'Account locked!' : 'Edit'; @endphp"><i class="fas fa-edit"></i></a>
                           @endcan
 
                           

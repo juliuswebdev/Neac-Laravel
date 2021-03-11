@@ -184,16 +184,17 @@ Route::post('register-socialmedia', ['middleware'=>['cors','apitoken'], function
     if($user_check) {
         $message = array(
             'alert' => 'success',
-            'token' =>  Crypt::encryptString($user_check->id)
+            'token' =>  Crypt::encryptString($user_check->id),
+            'user_type' => $user_check->user_type
         );
     } else {
         
         if($email) {
             
-            $filename = $request->input('id') .'_nurse_'. time() . '.jpg';
-            $newFilePath = public_path("documents") . "\'". $filename;
-            $filePath = str_replace("'", "", $newFilePath);
-            copy($request->input('picture'), str_replace("'", "", $filePath));
+            // $filename = $request->input('id') .'_nurse_'. time() . '.jpg';
+            // $newFilePath = public_path("documents") . "\'". $filename;
+            // $filePath = str_replace("'", "", $newFilePath);
+            // copy($request->input('picture'), str_replace("'", "", $filePath));
 
             $password = Helper::str_random(10);
             $user = new User;
@@ -224,7 +225,8 @@ Route::post('register-socialmedia', ['middleware'=>['cors','apitoken'], function
 
             $message = array(
                 'alert' => 'success',
-                'token' =>  Crypt::encryptString($user->id)
+                'token' =>  Crypt::encryptString($user->id),
+                'user_type' => 'applicant'
             );
         }
     }
@@ -549,11 +551,28 @@ Route::post('user/{id}/saveform', ['middleware' => ['cors', 'apitoken'], functio
         $notification->from_user_id = $user_id;
         $notification->module = 'forms';
         $notification->url = '/applicants/'.$user_id.'/edit';
-        $notification->messages = 'Update form!';
+        $notification->messages = 'Update Form ['.$posts['form_group_name'].']';
         $notification->save();
     }
     $message = array('message' => 'Successfully Updated');
     return response()->json($message);
+}]);
+
+Route::post('user/{id}/form/reactivate', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id) {
+    $user_id = Crypt::decryptString($id);
+    $posts = $request->all();
+    $profile = Profile::where('user_id', $user_id)->first();
+    $profile->forms_reactivate = $profile->forms_reactivate.','.$posts['form_group_id'];
+    $profile->update();
+    if($posts) {
+        $notification = new Notification;
+        $notification->from_user_id = $user_id;
+        $notification->module = 'forms';
+        $notification->url = '/applicants/'.$user_id.'/edit';
+        $notification->messages = 'Reactivate Form ['.$posts['form_group_name'].']';
+        $notification->save();
+    }
+ 
 }]);
 
 Route::post('user/{id}/updateprofile', ['middleware' => ['cors', 'apitoken'], function (Request $request, $id) {
@@ -588,7 +607,7 @@ Route::post('user/{id}/updateprofile', ['middleware' => ['cors', 'apitoken'], fu
         $notification->from_user_id = $user_id;
         $notification->module = 'profile';
         $notification->url = '/applicants/'.$user_id.'/edit';
-        $notification->messages = 'update profile.';
+        $notification->messages = 'Update Profile';
         $notification->save();
     }
 

@@ -108,7 +108,7 @@ class HomeController extends Controller
             'employees' => $employees,
             'resellers' => $resellers,
             'testimonials' => $testimonials,
-            'active_carts' => ($active_carts + $shopify_orders_count) - Cart::where('payment_mode', 'shopify')->count(),
+            'active_carts' => ($active_carts + $shopify_orders_count),
             'successful_transaction' => $successful_transaction
         ]);
     }

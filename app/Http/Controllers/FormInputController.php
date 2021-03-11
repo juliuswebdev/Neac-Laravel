@@ -96,10 +96,12 @@ class FormInputController extends Controller
         }
 
         $required = ($request->input('required') == 1) ? 1 : 0;
+        $visible_applicant = ($request->input('visible_applicant') == 1) ? 1 : 0;
         $form_input = FormInput::find($id);
         $form_input->update(array_merge($request->all(), [
              'settings' => $settings,
-             'required'=> $required
+             'required'=> $required,
+             'visible_applicant' => $visible_applicant
         ]));
         return redirect()->back();
         
